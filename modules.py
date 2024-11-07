@@ -304,8 +304,7 @@ def filter_data(df, deepBGC_selected, GECCO_selected, antiSMASH_selected, all_se
         base_mask &= class_mask
     
     # Convert BGC_length to numeric and filter by min and max values
-    df["BGC_length_numeric"] = pd.to_numeric(df["BGC_length"], errors="coerce")
-    length_mask = (df["BGC_length_numeric"] >= bgc_length_min) & (df["BGC_length_numeric"] <= bgc_length_max)
+    length_mask = (df["BGC_length"] >= bgc_length_min) & (df["BGC_length"] <= bgc_length_max)
     length_mask = length_mask.fillna(False).astype(bool)  # Ensure no NaN values, strictly boolean
     base_mask &= length_mask
 

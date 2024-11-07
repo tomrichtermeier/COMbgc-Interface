@@ -1,8 +1,7 @@
 from modules import (
-    combgc_table_ui, combgc_table_server, 
-    combgc_boxplot_server, combgc_boxplot_ui, 
+    combgc_table_ui, combgc_table_server,
+    combgc_general_statistics_server, combgc_general_statistics_ui, 
     combgc_barplot_ui, combgc_barplot_server, 
-    combgc_venn_ui, combgc_venn_server, 
     combgc_taxonomy_ui, combgc_taxonomy_server,
     taxonomy_stacked_bar_ui, taxonomy_stacked_bar_server,
     filter_data
@@ -13,14 +12,12 @@ from shiny import App, Inputs, Outputs, Session, reactive, ui, render
 import shinyswatch
 from pathlib import Path
 import pandas as pd
-import os
-import asyncio
 
 # Load data once to define product_classes
 data_path = "filtered_bgcs.tsv"
 data = pd.read_csv(data_path, sep="\t")
-# Extract unique product classes for the checkbox group (taking only the first entry)
-product_classes = sorted(set(data["Product_class"].dropna().apply(lambda x: x.split(", ")[0])))
+# Extract unique product classes for the checkbox group
+product_classes = sorted({item for entry in data["Product_class"].dropna() for item in entry.split(", ")})
 
 #################
 # UI: user interface function
@@ -28,7 +25,7 @@ product_classes = sorted(set(data["Product_class"].dropna().apply(lambda x: x.sp
 app_ui = ui.page_navbar(
     shinyswatch.theme.minty(),
     combgc_table_ui("tab1"),
-    combgc_boxplot_ui("tab2"),
+    combgc_general_statistics_ui("tab2"),
     combgc_barplot_ui("tab3"), 
     taxonomy_stacked_bar_ui("tab4"),
     combgc_taxonomy_ui("tab5"), 
@@ -39,7 +36,7 @@ app_ui = ui.page_navbar(
         ui.a(dict(href="https://github.com/Darcy220606/AMPcombi"), "COMbgc documentation"),
         # Upload file in TSV format
         ui.p("Choose a file to upload:"),
-        ui.input_file("combgc_user_tsv", label="", accept=[".tsv"]),# Replace individual checkboxes with a checkbox group for tools
+        ui.input_file("combgc_user_tsv", label="", accept=[".tsv"]),
         
         ui.p(),
         ui.HTML("<h4 style='color: #595959; font-size: 18px; font-weight: bold; margin-bottom: -5px;'>Select Prediction Tool</h4>"),
@@ -49,14 +46,14 @@ app_ui = ui.page_navbar(
             choices=["deepBGC", "GECCO", "antiSMASH", "All"], 
             selected=["deepBGC", "GECCO", "antiSMASH"],
         ),
-        ui.p(),  # Add more bottom space after the block)
-        
+
+        ui.p(),  
         ui.HTML("<h4 style='color: #595959; font-size: 18px; font-weight: bold; margin-bottom: -5px;'>Filter by BGC Length</h4>"),
         ui.row(
         ui.column(6, ui.input_numeric(
             "bgc_length_min",
             "Minimum:",
-            value=3000,  # Set to the minimum value in your data
+            value=3000,
             step=1,
         )),
         ui.column(6, ui.input_numeric(
@@ -66,7 +63,6 @@ app_ui = ui.page_navbar(
             step=1,
         ))
         ),
-        
         
         ui.HTML("<h4 style='color: #595959; font-size: 18px; font-weight: bold; margin-bottom: -5px;'>Select Product Class</h4>"),
         ui.input_action_button(
@@ -110,7 +106,7 @@ def server(input: Inputs, output: Outputs, session: Session):
         bgc_length_max = input.bgc_length_max() or float("inf")  # Default to infinity if None
 
         data = filter_data(data, deepBGC_selected, GECCO_selected, antiSMASH_selected, all_selected, selected_product_classes, bgc_length_min, bgc_length_max)
-        #data = data.drop(["identifier", "BGC_length_numeric"], axis=1)
+        data = data.drop(["identifier"], axis=1) # , "BGC_length_numeric"
         return data
 
     @reactive.Effect
@@ -126,7 +122,7 @@ def server(input: Inputs, output: Outputs, session: Session):
     @reactive.event(input.toggle_product_classes)
     def on_toggle_product_classes():
         # Get the list of all product classes
-        all_product_classes = product_classes  # From the initial code
+        all_product_classes = product_classes
         current_selection = input.product_class() or []
         # Toggle selection based on the current state
         if set(current_selection) == set(all_product_classes):
@@ -137,8 +133,7 @@ def server(input: Inputs, output: Outputs, session: Session):
 
 
     combgc_table_server(id="tab1", df=filtered_data)
-    combgc_boxplot_server(id="tab2", df=filtered_data)
-    combgc_venn_server(id="tab2", df=filtered_data)
+    combgc_general_statistics_server(id="tab2", df=filtered_data)
     combgc_barplot_server(id="tab3", df=filtered_data)
     taxonomy_stacked_bar_server(id="tab4", df=filtered_data)
     combgc_taxonomy_server(id="tab5", df=filtered_data)

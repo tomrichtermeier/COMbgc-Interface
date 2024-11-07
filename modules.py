@@ -22,30 +22,30 @@ from plots import (
 ###########################################
 #       TABLE
 ###########################################
-
 @module.ui
 def combgc_table_ui():
     return ui.nav_panel(
         "Table",  # Name of the tab
         # download rows selected: table tab
-        ui.p("Download selected rows:"),
+        ui.p("Download only the selected rows:"),
         ui.row(
             ui.card(
-                ui.download_button("download_combgc_table_rows", "Download 'combgc_table_selected_rows.tsv'", class_="btn btn-info")
+                ui.download_button("download_combgc_table_rows", "Download 'combgc_selected_rows.tsv'", class_="btn btn-info")
             )
         ),
         ui.p("Rows selected by user:", style="font-size: 20px;"),
         ui.output_text("combgc_table_rows", inline=True),
         ui.output_data_frame("combgc_table_dataframe")
     )
-    
+
+
 @module.server
 def combgc_table_server(
     input: Inputs,
     output: Outputs,
     session: Session,
     df: Callable[[], pd.DataFrame],
-):
+    ):
     selected_rows = reactive.Value([])  # Store selected rows
     
     @render.data_frame
@@ -68,7 +68,7 @@ def combgc_table_server(
     @render.text
     def combgc_table_rows():
         """
-        AMPCOMBI: prints the row numbers selected by user
+        COMbgc: prints the row numbers selected by user
         """
         selected = input.combgc_table_dataframe_selected_rows() or selected_rows.get()
         l = ", ".join(str(i) for i in selected)
@@ -80,20 +80,6 @@ def combgc_table_server(
         indices = list(input.combgc_table_dataframe_selected_rows() or selected_rows.get())
         selected_rows_data = df().iloc[indices]
         yield selected_rows_data.to_csv(sep="\t", index=False)
-    @reactive.Effect
-    @reactive.event(input.select_all_rows)  # React to "Select All" button click
-    def on_select_all_rows():
-        if df() is not None:
-            # Apply the filter function directly to get indices of filtered rows
-            filtered_df = df()  # Assume df() is already filtered if DataGrid has active filters
-            
-            # Set selected rows to all rows" indices in the filtered DataFrame
-            selected_rows.set(list(filtered_df.index))
-
-    @reactive.Effect
-    @reactive.event(input.unselect_all_rows)  # React to "Unselect All" button click
-    def on_unselect_all_rows():
-        selected_rows.set([])  # Clear the selection
 
 
 
@@ -103,7 +89,7 @@ def combgc_table_server(
 #      BOXPLOT
 ###########################################
 @module.ui
-def combgc_boxplot_ui():
+def combgc_general_statistics_ui():
     return ui.nav_panel(
         "General Statistics",  # Name of the tab
         #ui.p("Select the minimum amount of bgcs for the category to be displayed:"),
@@ -113,20 +99,28 @@ def combgc_boxplot_ui():
         ui.p(""),
         ui.row(
             ui.card(
-                ui.download_button("download_combgc_table_rows", "Download 'combgc_table_selected_rows.tsv'", class_="btn btn-info")
+                ui.download_button("download_data", "Download 'combgc_table_filtered.tsv'", class_="btn btn-info")
             )
         ),
-        ui.output_data_frame("combgc_upset_table"),
+        ui.output_data_frame("combgc_table"),
     )
 
 
 @module.server
-def combgc_boxplot_server(
+def combgc_general_statistics_server(
     input: Inputs,
     output: Outputs,
     session: Session,
     df: Callable[[], pd.DataFrame],
-):
+    ):
+    @output
+    @render_widget
+    def venn_diagram():
+        data = df()  # Reactive data retrieval
+
+        if data is not None and not data.empty:
+            return create_venn(data)
+        return None
 
     @output
     @render_widget
@@ -137,27 +131,18 @@ def combgc_boxplot_server(
         if data is not None and not data.empty:
             return boxplot_product_classes(data, number_plots)  # Pass the correct threshold
         return None
-    ## Tabelle
-    def combgc_table_filter_upset():
-      return df()
+    
 
     @render.data_frame
-    def combgc_upset_table():
-        df_amp_filt = combgc_table_filter_upset()
-        if isinstance(df_amp_filt, pd.DataFrame):
-            filtered_table = render.DataTable(df_amp_filt, width="100%")
-            return filtered_table
-        else:
-            return render.DataTable(df(),width="100%")
-    
+    def combgc_table():
+        return render.DataTable(df(), width="100%")
+        
     @render.download(
-    filename=lambda: "combgc_upset_filtered.tsv"
+    filename=lambda: "combgc_table_filtered.tsv"
     )
-    async def combgc_upset_download_filtered():
-        df_amp_filt = combgc_table_filter_upset()
-        if isinstance(df_amp_filt, pd.DataFrame):
-            yield df_amp_filt.to_csv("combgc_upset_filtered.tsv", sep="\t", index=False)
-
+    def download_data():
+        filtered_data = df()
+        yield filtered_data.to_csv(sep="\t", index=False)
 
 
 
@@ -171,13 +156,13 @@ def combgc_barplot_ui():
     return ui.nav_panel(
         "Class Distribution",
         output_widget("barplot_output"),
-        ui.p(""),  # Placeholder to render the Plotly bar plot
+        ui.p(""),
         ui.row(
             ui.card(
-                ui.download_button("download_combgc_table_rows", "Download 'combgc_table_selected_rows.tsv'", class_="btn btn-info")
+                ui.download_button("download_data", "Download 'combgc_table_filtered.tsv'", class_="btn btn-info")
             )
         ),
-        ui.output_data_frame("combgc_upset_table")
+        ui.output_data_frame("combgc_table")
     )
 
 @module.server
@@ -185,63 +170,72 @@ def combgc_barplot_server(
     input: Inputs,
     output: Outputs,
     session: Session,
-    df: Callable[[], pd.DataFrame],):
+    df: Callable[[], pd.DataFrame],
+    ):
     @output
     @render_widget
     def barplot_output():
         data = df()  # Call the reactive function to get the actual DataFrame
-
-        if data is not None and not data.empty:  # Check if the DataFrame exists
+        if data is not None and not data.empty:
             return stacked_bars_product_classes(data)  # Pass the DataFrame to the plot function
         return None
 
-
-    ## Tabelle
-    def combgc_table_filter_upset():
-      return df()
-
     @render.data_frame
-    def combgc_upset_table():
-        df_amp_filt = combgc_table_filter_upset()
-        if isinstance(df_amp_filt, pd.DataFrame):
-            filtered_table = render.DataTable(df_amp_filt, width="100%")
-            return filtered_table
-        else:
-            return render.DataTable(df(),width="100%")
-    
+    def combgc_table():
+        return render.DataTable(df(), width="100%")
+        
     @render.download(
-    filename=lambda: "combgc_upset_filtered.tsv"
+    filename=lambda: "combgc_table_filtered.tsv"
     )
-    async def combgc_upset_download_filtered():
-        df_amp_filt = combgc_table_filter_upset()
-        if isinstance(df_amp_filt, pd.DataFrame):
-            yield df_amp_filt.to_csv("combgc_upset_filtered.tsv", sep="\t", index=False)
+    def download_data():
+        filtered_data = df()
+        yield filtered_data.to_csv(sep="\t", index=False)
+
+
 
 
 ###########################################
-#      VENN DIAGRAM
+#      Taxonomy
 ###########################################
+
 @module.ui
-def combgc_venn_ui():
+def taxonomy_stacked_bar_ui():
     return ui.nav_panel(
-        "Venn Diagram",
-        output_widget("venn_diagram")
+        "Taxonomy Distribution",
+        ui.input_select("taxonomy_level", "Select Taxonomy Level:", choices=["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]),
+        output_widget("taxonomy_stacked_bar"),
+        ui.p(""),
+        ui.row(
+            ui.card(
+                ui.download_button("download_data", "Download 'combgc_table_filtered.tsv'", class_="btn btn-info")
+            )
+        ),
+        ui.output_data_frame("combgc_upset_table")
     )
 
 @module.server
-def combgc_venn_server(
-    input: Inputs,
-    output: Outputs,
-    session: Session,
-    df: Callable[[], pd.DataFrame],):
+def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session, df: Callable[[], pd.DataFrame]):
     @output
     @render_widget
-    def venn_diagram():
-        data = df()  # Reactive data retrieval
-
+    def taxonomy_stacked_bar():
+        data = df()
         if data is not None and not data.empty:
-            return create_venn(data)
+            #data["sample_id"] = data["sample_id"].str.split("-").str[0]
+            data = preprocess_taxonomy_column(data, column_name="mmseqs_lineage_contig")  # Preprocess if not already done
+            taxonomy_level = input.taxonomy_level()
+            return stacked_bars_taxonomy(data, taxonomy_level)
         return None
+    
+    @render.data_frame
+    def combgc_table():
+        return render.DataTable(df(), width="100%")
+        
+    @render.download(
+    filename=lambda: "combgc_table_filtered.tsv"
+    )
+    def download_data():
+        filtered_data = df()
+        yield filtered_data.to_csv(sep="\t", index=False)
 
 
 
@@ -279,74 +273,14 @@ def combgc_taxonomy_server(
             return plot_combgc_sankey(data)
         return None
 
-        # if input.clusters_id_tax() is not None:
-        #     filtered = df()[df()["cluster_id"] == input.clusters_id_tax()]
-        #     return plot_combgc_sankey(filtered)
-        # else: 
-        #     return plot_combgc_sankey(df())
+
+
+
 
 
 ###########################################
-#      Taxonomy
+#      FILTER DATA
 ###########################################
-
-@module.ui
-def taxonomy_stacked_bar_ui():
-    return ui.nav_panel(
-        "Taxonomy Distribution",
-        ui.input_select("taxonomy_level", "Select Taxonomy Level:", choices=["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]),
-        output_widget("taxonomy_stacked_bar"),
-        ui.p(""),
-        ui.row(
-            ui.card(
-                ui.download_button("download_combgc_table_rows", "Download 'combgc_table_selected_rows.tsv'", class_="btn btn-info")
-            )
-        ),
-        ui.output_data_frame("combgc_upset_table")
-    )
-
-@module.server
-def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session, df: Callable[[], pd.DataFrame]):
-    @output
-    @render_widget
-    def taxonomy_stacked_bar():
-        data = df()
-        if data is not None and not data.empty:
-            #data["sample_id"] = data["sample_id"].str.split("-").str[0]
-            data = preprocess_taxonomy_column(data, column_name="mmseqs_lineage_contig")  # Preprocess if not already done
-            taxonomy_level = input.taxonomy_level()
-            return stacked_bars_taxonomy(data, taxonomy_level)
-        return None
-    
-    ## Tabelle
-    def combgc_table_filter_upset():
-      return df()
-
-    @render.data_frame
-    def combgc_upset_table():
-        df_amp_filt = combgc_table_filter_upset()
-        if isinstance(df_amp_filt, pd.DataFrame):
-            filtered_table = render.DataTable(df_amp_filt, width="100%")
-            return filtered_table
-        else:
-            return render.DataTable(df(),width="100%")
-    
-    @render.download(
-    filename=lambda: "combgc_upset_filtered.tsv"
-    )
-    async def combgc_upset_download_filtered():
-        df_amp_filt = combgc_table_filter_upset()
-        if isinstance(df_amp_filt, pd.DataFrame):
-            yield df_amp_filt.to_csv("combgc_upset_filtered.tsv", sep="\t", index=False)
-
-
-
-
-
-
-
-
-
 def filter_data(df, deepBGC_selected, GECCO_selected, antiSMASH_selected, all_selected, selected_product_classes, bgc_length_min, bgc_length_max):
     # Initialize a base mask with False values, aligned with the DataFrame index
     base_mask = pd.Series([False] * len(df), index=df.index)

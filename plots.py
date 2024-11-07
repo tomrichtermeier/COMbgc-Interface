@@ -9,9 +9,6 @@ import plotly.graph_objects as go
 ############################################
 ##### Plots all product classes ######
 def boxplot_product_classes(table, number_plots):
-    """
-    Generates a boxplot of BGC lengths by Product Class with a dynamic threshold for number of classes.
-    """
     filtered_bgcs = table
     
     # Keep the full product class entries without splitting them
@@ -49,8 +46,6 @@ def boxplot_product_classes(table, number_plots):
 ###########################################
 #       STACKED BARS
 ###########################################
-
-##### Only takes on in the product class #####
 def stacked_bars_product_classes(table):
     filtered_bgcs = table.copy()
     filtered_bgcs["sample_id"] = filtered_bgcs["sample_id"].str.split("-").str[0]

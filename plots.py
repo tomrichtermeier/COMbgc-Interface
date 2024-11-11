@@ -1,6 +1,9 @@
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+import re
 
 
 
@@ -29,8 +32,8 @@ def boxplot_product_classes(table, number_plots):
                  x="Product_class", 
                  y="BGC_length", 
                  title="BGC Length by Product Class (log scale)",
-                 labels={"Product_class": "Product Class", "BGC_length": "BGC Length"},
-                 hover_data=["sample_id"])
+                 labels={"Product_class": "Product Class", "BGC_length": "BGC Length [bp]"},
+                 hover_data=["sample_id", "contig_id"])
 
     # Add log scale and sort by class count
     fig.update_layout(yaxis_type="log", xaxis={"categoryorder": "array", "categoryarray": class_order})
@@ -49,17 +52,13 @@ def boxplot_product_classes(table, number_plots):
 def stacked_bars_product_classes(table):
     filtered_bgcs = table.copy()
     filtered_bgcs["sample_id"] = filtered_bgcs["sample_id"].str.split("-").str[0]
-
-    # Extract sample name from the bgc identifier
     filtered_bgcs["sample_name"] = filtered_bgcs["sample_id"].str.split("_").str[0]
 
-    # Count occurrences of each "Product_class" grouped by "sample_name"
     product_class_counts = filtered_bgcs.groupby(["sample_name", "Product_class"]).size().unstack(fill_value=0).reset_index()
-
-    # Melt the dataframe to long format for easier plotting with Plotly
+    # Melt the dataframe to long format 
     product_class_counts_melted = product_class_counts.melt(id_vars="sample_name", var_name="First_Product_class", value_name="Count")
+
     
-    # Create the stacked bar plot using Plotly
     fig = px.bar(product_class_counts_melted, 
                  x="sample_name", 
                  y="Count", 
@@ -69,16 +68,58 @@ def stacked_bars_product_classes(table):
                  barmode="stack")
     
     fig.update_layout(
-        width=1200,  # Set the width (in pixels)
-        height=800  # Set the height (in pixels)
+        width=1200,
+        height=800
     )
     
     fig.update_xaxes(tickangle=-90)
     
-    return fig  # Return the figure object, do not call fig.show()
+    return fig
 
 
 
+###########################################
+#      SCATTER PLOT
+###########################################
+
+def scatter_bgc_contig_classes(table):
+    filtered_bgcs = table.copy()
+    filtered_bgcs['contig_length'] = filtered_bgcs['contig_id'].apply(lambda x: int(re.search(r'length_(\d+)', x).group(1)))
+    product_classes = filtered_bgcs['Product_class'].unique()
+
+    fig = make_subplots(rows=len(product_classes), cols=1, subplot_titles=[f"Product Class: {pc}" for pc in product_classes])
+
+    for i, product_class in enumerate(product_classes, 1):
+        subset = filtered_bgcs[filtered_bgcs['Product_class'] == product_class]
+        scatter = go.Scatter(
+                            x=subset['contig_length'], 
+                            y=subset['BGC_length'], 
+                            mode='markers', 
+                            name=product_class,
+                            text=subset['sample_id'],  # Assign sample_id to hover text
+                            customdata=subset['contig_id'],  # Assign contig_id to custom data
+                            hovertemplate="Sample ID: %{text}<br>Contig ID: %{customdata}<br>Contig Length: %{x}<br>BGC Length: %{y}"
+            )
+        fig.add_trace(scatter, row=i, col=1)
+        
+        if len(subset) == 1:
+            single_x = subset['contig_length'].iloc[0]
+            single_y = subset['BGC_length'].iloc[0]
+            x_range = [single_x - 0.5 * single_x, single_x + 0.5 * single_x]  # Adjust range by +/- 50%
+            y_range = [single_y - 0.5 * single_y, single_y + 0.5 * single_y]
+            fig.update_xaxes(range=x_range, row=i, col=1)
+            fig.update_yaxes(range=y_range, row=i, col=1)
+
+    fig.update_layout(
+        height=250 * len(product_classes),  # Adjust height based on the number of classes
+        title_text="BGC Length vs. Contig Length for Each Product Class",
+        showlegend=False,
+        margin=dict(t=100),
+        xaxis_title="Contig Length [bp]", 
+        yaxis_title="BGC Length [bp]"
+
+    )
+    return fig
 
 
 

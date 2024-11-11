@@ -11,7 +11,8 @@ from plots import (
     create_venn, 
     plot_combgc_sankey, 
     preprocess_taxonomy_column, 
-    stacked_bars_taxonomy
+    stacked_bars_taxonomy,
+    scatter_bgc_contig_classes
     )
 
 ###########################################
@@ -157,6 +158,8 @@ def combgc_barplot_ui():
         "Class Distribution",
         output_widget("barplot_output"),
         ui.p(""),
+        output_widget("scatter_output"),
+        ui.p(""),
         ui.row(
             ui.card(
                 ui.download_button("download_data", "Download 'combgc_table_filtered.tsv'", class_="btn btn-info")
@@ -179,6 +182,15 @@ def combgc_barplot_server(
         if data is not None and not data.empty:
             return stacked_bars_product_classes(data)  # Pass the DataFrame to the plot function
         return None
+    
+    @output
+    @render_widget
+    def scatter_output():
+        data = df()  # Call the reactive function to get the actual DataFrame
+        if data is not None and not data.empty:
+            return scatter_bgc_contig_classes(data)  # Pass the DataFrame to the plot function
+        return None
+
 
     @render.data_frame
     def combgc_table():

@@ -6,7 +6,7 @@ from modules import (
     taxonomy_stacked_bar_ui, taxonomy_stacked_bar_server,
     filter_data
     )
-
+from plots import preprocess_taxonomy_column
 from shiny import App, Inputs, Outputs, Session, reactive, ui, render
 
 import shinyswatch
@@ -84,17 +84,14 @@ app_ui = ui.page_navbar(
 def server(input: Inputs, output: Outputs, session: Session):
     @reactive.Calc()
     def filtered_data() -> pd.DataFrame:
-        file_infos = input.combgc_user_tsv()  # it's a list of dict, each dict one file
-        # Check if file is uploaded by the user
+        file_infos = input.combgc_user_tsv()
         if not file_infos:
             return None
 
-        out_str = ""
         for file_info in file_infos:
             out_str = file_info["datapath"]
-            data = pd.read_csv(out_str, sep="\t")  # Read the TSV file into a DataFram
+            data = pd.read_csv(out_str, sep="\t")
         
-        # Check which tools are selected
         selected_tools = input.tool_selection()
         deepBGC_selected = "deepBGC" in selected_tools
         GECCO_selected = "GECCO" in selected_tools
@@ -102,13 +99,15 @@ def server(input: Inputs, output: Outputs, session: Session):
         all_selected = "All" in selected_tools
 
         selected_product_classes = input.product_class()
-        bgc_length_min = input.bgc_length_min() or 0  # Default to 0 if None
-        bgc_length_max = input.bgc_length_max() or float("inf")  # Default to infinity if None
+        bgc_length_min = input.bgc_length_min() or 0
+        bgc_length_max = input.bgc_length_max() or float("inf")
 
+        # Apply the filter_data function to filter based on sidebar inputs
         data = filter_data(data, deepBGC_selected, GECCO_selected, antiSMASH_selected, all_selected, selected_product_classes, bgc_length_min, bgc_length_max)
-        data = data.drop(["identifier"], axis=1) # , "BGC_length_numeric"
-        return data
 
+        # Reapply preprocess_taxonomy_column to ensure taxonomy columns are consistent
+        data = preprocess_taxonomy_column(data, column_name="mmseqs_lineage_contig")
+        return data
     @reactive.Effect
     @reactive.event(input.tool_selection)
     def toggle_all_behavior():  # if on is toggled all other are automatically toggled of

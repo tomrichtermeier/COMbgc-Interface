@@ -2,6 +2,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import colorsys
 
 import re
 
@@ -238,20 +239,30 @@ def create_venn(table):
 #      Taxonomy
 ###########################################
 
-def preprocess_taxonomy_column(data, column_name="taxonomy"):
-    """
-    Extracts and creates separate columns for each taxonomy level from a combined string.
-    """
-    taxonomy_levels = ["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]
-    split_taxonomy = data[column_name].str.split(";", expand=True)
+def preprocess_taxonomy_column(data, column_name="mmseqs_lineage_contig"):
+    data = data.copy()
+    taxonomy_columns = ["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]
 
-    # Create separate columns for each level
-    for i, level in enumerate(taxonomy_levels):
-        if i < split_taxonomy.shape[1]:  # Check if the column exists
-            data[level] = split_taxonomy[i].str.split("_", n=1).str[1]  # Correctly use n=1
+    # Remove any existing taxonomy columns to prevent duplication
+    existing_columns = [col for col in taxonomy_columns if col in data.columns]
+    if existing_columns:
+        data = data.drop(columns=existing_columns)
 
+    taxonomy_data = data[column_name].str.split(";", expand=True)
+    # Assign column names only up to the number of columns in `taxonomy_data`
+    taxonomy_data.columns = taxonomy_columns[:taxonomy_data.shape[1]]
+
+    for col in taxonomy_data.columns:
+        taxonomy_data[col] = taxonomy_data[col].str.split("_").str[1]
+
+    # Ensure all taxonomy columns are present by adding missing ones with None
+    for col in taxonomy_columns:
+        if col not in taxonomy_data.columns:
+            taxonomy_data[col] = None
+    # Concatenate the new taxonomy columns with the original dataframe
+    data = pd.concat([data, taxonomy_data[taxonomy_columns]], axis=1)
+    
     return data
-
 
 def stacked_bars_taxonomy(data, taxonomy_level):
     """

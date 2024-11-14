@@ -19,7 +19,6 @@ from plots import (
 #SHINY VERSION == 0.7.1
 ###########################################
 
-
 ###########################################
 #       TABLE
 ###########################################
@@ -215,6 +214,7 @@ def taxonomy_stacked_bar_ui():
     return ui.nav_panel(
         "Taxonomy Distribution",
         ui.input_select("taxonomy_level", "Select Taxonomy Level:", choices=["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]),
+        ui.output_ui("taxonomy_options_ui"),  # Placeholder for dynamic checkbox options
         output_widget("taxonomy_stacked_bar"),
         ui.p(""),
         ui.row(
@@ -222,7 +222,7 @@ def taxonomy_stacked_bar_ui():
                 ui.download_button("download_data", "Download 'combgc_table_filtered.tsv'", class_="btn btn-info")
             )
         ),
-        ui.output_data_frame("combgc_upset_table")
+        ui.output_data_frame("combgc_table"),
     )
 
 @module.server
@@ -235,22 +235,53 @@ def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session
             #data["sample_id"] = data["sample_id"].str.split("-").str[0]
             data = preprocess_taxonomy_column(data, column_name="mmseqs_lineage_contig")  # Preprocess if not already done
             taxonomy_level = input.taxonomy_level()
+            selected_options = input.taxonomy_options()  # Get selected options from the checkbox
+            if selected_options:
+                data = data[data[taxonomy_level].isin(selected_options)]
+
+            
             return stacked_bars_taxonomy(data, taxonomy_level)
         return None
     
+    @output
     @render.data_frame
     def combgc_table():
-        return render.DataTable(df(), width="100%")
+        data = df()
+        if data is not None and not data.empty:
+            taxonomy_level = input.taxonomy_level()
+            selected_options = input.taxonomy_options()  # Get selected options from the checkbox
+            if selected_options:
+                data = data[data[taxonomy_level].isin(selected_options)]
+        return render.DataTable(data, width="100%")
         
     @render.download(
     filename=lambda: "combgc_table_filtered.tsv"
     )
     def download_data():
-        filtered_data = df()
-        yield filtered_data.to_csv(sep="\t", index=False)
+        data = df()
+        if data is not None and not data.empty:
+            taxonomy_level = input.taxonomy_level()
+            selected_options = input.taxonomy_options()  # Get selected options from the checkbox
+            if selected_options:
+                data = data[data[taxonomy_level].isin(selected_options)]
+        yield data.to_csv(sep="\t", index=False)
 
 
+    @output
+    @render.ui
+    def taxonomy_options_ui():
+        taxonomy_level = input.taxonomy_level()
 
+        # Get the filtered data and apply the taxonomy preprocessing
+        data = df()
+        if data is not None and taxonomy_level in data.columns:
+            unique_values = sorted(data[taxonomy_level].dropna().unique())
+            return ui.input_checkbox_group("taxonomy_options", "Select Specific Taxonomy Options:", choices=unique_values, selected=unique_values)
+        else:
+            print(f"Warning: Taxonomy level '{taxonomy_level}' not found in data columns.")
+        
+        # Default empty checkbox if no data or column is available
+        return ui.input_checkbox_group("taxonomy_options", "Select Specific Taxonomy Options:", choices=[])
 
 ###########################################
 #      Sankey

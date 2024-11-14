@@ -237,6 +237,7 @@ def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session
             taxonomy_level = input.taxonomy_level()
             selected_options = input.taxonomy_options()  # Get selected options from the checkbox
             if selected_options:
+                selected_options = [opt.replace("_", " ") for opt in selected_options]
                 data = data[data[taxonomy_level].isin(selected_options)]
 
             
@@ -251,6 +252,7 @@ def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session
             taxonomy_level = input.taxonomy_level()
             selected_options = input.taxonomy_options()  # Get selected options from the checkbox
             if selected_options:
+                selected_options = [opt.replace("_", " ") for opt in selected_options]
                 data = data[data[taxonomy_level].isin(selected_options)]
         return render.DataTable(data, width="100%")
         
@@ -283,7 +285,8 @@ def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session
         # Default empty checkbox if no data or column is available
         return ui.input_checkbox_group("taxonomy_options", "Select Specific Taxonomy Options:", choices=[])
 
-###########################################
+
+# ########################################
 #      Sankey
 ###########################################
 @module.ui
@@ -307,12 +310,16 @@ def combgc_taxonomy_server(
     input: Inputs,
     output: Outputs,
     session: Session,
-    df: Callable[[], pd.DataFrame],):
+    df: Callable[[], pd.DataFrame],
+):
     @output
     @render_widget
     def combgc_sankey_plot():
         data = df()
         if data is not None and not data.empty:
+            # Check if the mmseqs_contig_lineage column exists and has only NaN values
+            if "mmseqs_contig_lineage" in data.columns and data["mmseqs_contig_lineage"].isna().all():
+                raise ValueError("Error: No values found in mmseqs_contig_lineage column.")
             return plot_combgc_sankey(data)
         return None
 

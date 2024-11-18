@@ -1,7 +1,8 @@
 pandas
 shiny==0.7.1
 shinyswatch==0.4.2
-plotly==5.18.0
+plotly==5.24.1
 ipython
 kaleido
+colorsys
 

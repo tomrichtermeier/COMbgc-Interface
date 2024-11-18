@@ -215,6 +215,13 @@ def taxonomy_stacked_bar_ui():
         "Taxonomy Distribution",
         ui.input_select("taxonomy_level", "Select Taxonomy Level:", choices=["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]),
         ui.output_ui("taxonomy_options_ui"),  # Placeholder for dynamic checkbox options
+        ui.input_action_button(
+            "toggle_taxonomy_options",
+            "Select/Unselect all",
+            class_="btn btn-outline-dark",
+            style="font-size: 12px; padding: 2px 0px; display: inline-block;"
+        ),
+        ui.p(""),
         output_widget("taxonomy_stacked_bar"),
         ui.p(""),
         ui.row(
@@ -232,7 +239,9 @@ def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session
     def taxonomy_stacked_bar():
         data = df()
         if data is not None and not data.empty:
-            #data["sample_id"] = data["sample_id"].str.split("-").str[0]
+            if "mmseqs_lineage_contig" in data.columns and data["mmseqs_lineage_contig"].astype(str).eq("nan").all():
+                raise ValueError("Error: No values found in mmseqs_contig_lineage column.")
+
             data = preprocess_taxonomy_column(data, column_name="mmseqs_lineage_contig")  # Preprocess if not already done
             taxonomy_level = input.taxonomy_level()
             selected_options = input.taxonomy_options()  # Get selected options from the checkbox
@@ -243,7 +252,8 @@ def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session
             
             return stacked_bars_taxonomy(data, taxonomy_level)
         return None
-    
+
+
     @output
     @render.data_frame
     def combgc_table():
@@ -255,7 +265,8 @@ def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session
                 selected_options = [opt.replace("_", " ") for opt in selected_options]
                 data = data[data[taxonomy_level].isin(selected_options)]
         return render.DataTable(data, width="100%")
-        
+
+
     @render.download(
     filename=lambda: "combgc_table_filtered.tsv"
     )
@@ -284,6 +295,26 @@ def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session
         
         # Default empty checkbox if no data or column is available
         return ui.input_checkbox_group("taxonomy_options", "Select Specific Taxonomy Options:", choices=[])
+    
+
+    @reactive.Effect
+    @reactive.event(input.toggle_taxonomy_options)
+    def on_toggle_taxonomy_options():
+        taxonomy_level = input.taxonomy_level()
+        current_selection = input.taxonomy_options() or []
+
+        # Get the filtered data and apply the taxonomy preprocessing
+        data = df()
+        if data is not None and taxonomy_level in data.columns:
+            unique_values = sorted(data[taxonomy_level].dropna().unique())
+
+            # Toggle selection based on the current state
+            if set(current_selection) == set(unique_values):
+                new_selection = [] # If all are selected, unselect all
+            else:
+                new_selection = unique_values # Otherwise, select all
+            session.send_input_message("taxonomy_options", {"value": new_selection})
+
 
 
 # ########################################
@@ -318,7 +349,7 @@ def combgc_taxonomy_server(
         data = df()
         if data is not None and not data.empty:
             # Check if the mmseqs_contig_lineage column exists and has only NaN values
-            if "mmseqs_contig_lineage" in data.columns and data["mmseqs_contig_lineage"].isna().all():
+            if "mmseqs_lineage_contig" in data.columns and data["mmseqs_lineage_contig"].astype(str).eq("nan").all():
                 raise ValueError("Error: No values found in mmseqs_contig_lineage column.")
             return plot_combgc_sankey(data)
         return None

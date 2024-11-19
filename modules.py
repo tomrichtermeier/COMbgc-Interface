@@ -214,14 +214,13 @@ def taxonomy_stacked_bar_ui():
     return ui.nav_panel(
         "Taxonomy Distribution",
         ui.input_select("taxonomy_level", "Select Taxonomy Level:", choices=["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]),
-        ui.output_ui("taxonomy_options_ui"),  # Placeholder for dynamic checkbox options
+        ui.output_ui("taxonomy_options_ui", style="margin-bottom: 5px;"),  # Placeholder for dynamic checkbox options
         ui.input_action_button(
             "toggle_taxonomy_options",
             "Select/Unselect all",
             class_="btn btn-outline-dark",
-            style="font-size: 12px; padding: 2px 0px; display: inline-block;"
+            style="font-size: 12px; padding: 2px 10px; display: inline-block; margin-top: -12px; margin-bottom: 30px;"  # Adjust spacing around button
         ),
-        ui.p(""),
         output_widget("taxonomy_stacked_bar"),
         ui.p(""),
         ui.row(

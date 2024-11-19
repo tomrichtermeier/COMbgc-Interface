@@ -33,7 +33,7 @@ app_ui = ui.page_navbar(
     sidebar=ui.sidebar(
         # Add logo
         ui.img(src="com-bgc-logo.png", style="width:200px;"),
-        ui.a(dict(href="https://github.com/Darcy220606/AMPcombi"), "COMbgc documentation"),
+        ui.a(dict(href="https://github.com/tomrichtermeier/COMbgc-Interface"), "COMbgc documentation"),
         # Upload file in TSV format
         ui.p("Choose a file to upload:"),
         ui.input_file("combgc_user_tsv", label="", accept=[".tsv"]),
@@ -104,10 +104,11 @@ def server(input: Inputs, output: Outputs, session: Session):
 
         # Apply the filter_data function to filter based on sidebar inputs
         data = filter_data(data, deepBGC_selected, GECCO_selected, antiSMASH_selected, all_selected, selected_product_classes, bgc_length_min, bgc_length_max)
-
-        # Reapply preprocess_taxonomy_column to ensure taxonomy columns are consistent
-        data = preprocess_taxonomy_column(data, column_name="mmseqs_lineage_contig")
+        data["mmseqs_lineage_contig"] = data["mmseqs_lineage_contig"].astype(str).fillna("")
+        data = data.drop(columns="identifier")
         return data
+    
+
     @reactive.Effect
     @reactive.event(input.tool_selection)
     def toggle_all_behavior():  # if on is toggled all other are automatically toggled of
@@ -116,6 +117,7 @@ def server(input: Inputs, output: Outputs, session: Session):
             session.send_input_message("tool_selection", {"value": ["All"]})
         elif "All" not in selected_tools and not selected_tools:
             session.send_input_message("tool_selection", {"value": ["deepBGC", "GECCO", "antiSMASH"]})
+
 
     @reactive.Effect
     @reactive.event(input.toggle_product_classes)

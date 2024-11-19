@@ -56,6 +56,8 @@ def stacked_bars_product_classes(table):
     filtered_bgcs["sample_name"] = filtered_bgcs["sample_id"].str.split("_").str[0]
 
     product_class_counts = filtered_bgcs.groupby(["sample_name", "Product_class"]).size().unstack(fill_value=0).reset_index()
+
+
     # Melt the dataframe to long format 
     product_class_counts_melted = product_class_counts.melt(id_vars="sample_name", var_name="First_Product_class", value_name="Count")
 

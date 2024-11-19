@@ -232,12 +232,13 @@ def taxonomy_stacked_bar_ui():
         ui.output_data_frame("combgc_table"),
     )
 
+
 @module.server
 def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session, df: Callable[[], pd.DataFrame]):
     @output
     @render_widget
     def taxonomy_stacked_bar():
-        data = df()
+        data = df().copy()
         if data is not None and not data.empty:
             if "mmseqs_lineage_contig" in data.columns and data["mmseqs_lineage_contig"].astype(str).eq("nan").all():
                 raise ValueError("Error: No values found in mmseqs_contig_lineage column.")
@@ -258,12 +259,15 @@ def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session
     @render.data_frame
     def combgc_table():
         data = df()
+        data = preprocess_taxonomy_column(data, column_name="mmseqs_lineage_contig")
+
         if data is not None and not data.empty:
             taxonomy_level = input.taxonomy_level()
             selected_options = input.taxonomy_options()  # Get selected options from the checkbox
             if selected_options:
                 selected_options = [opt.replace("_", " ") for opt in selected_options]
                 data = data[data[taxonomy_level].isin(selected_options)]
+        data = data.drop(columns=["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"], errors="ignore")
         return render.DataTable(data, width="100%")
 
 
@@ -272,11 +276,14 @@ def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session
     )
     def download_data():
         data = df()
+        data = preprocess_taxonomy_column(data, column_name="mmseqs_lineage_contig")
+
         if data is not None and not data.empty:
             taxonomy_level = input.taxonomy_level()
             selected_options = input.taxonomy_options()  # Get selected options from the checkbox
             if selected_options:
                 data = data[data[taxonomy_level].isin(selected_options)]
+        data = data.drop(columns=["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"], errors="ignore")
         yield data.to_csv(sep="\t", index=False)
 
 
@@ -287,6 +294,8 @@ def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session
 
         # Get the filtered data and apply the taxonomy preprocessing
         data = df()
+        data = preprocess_taxonomy_column(data, column_name="mmseqs_lineage_contig")
+
         if data is not None and taxonomy_level in data.columns:
             unique_values = sorted(data[taxonomy_level].dropna().unique())
             return ui.input_checkbox_group("taxonomy_options", "Select Specific Taxonomy Options:", choices=unique_values, selected=unique_values)
@@ -305,6 +314,8 @@ def taxonomy_stacked_bar_server(input: Inputs, output: Outputs, session: Session
 
         # Get the filtered data and apply the taxonomy preprocessing
         data = df()
+        data = preprocess_taxonomy_column(data, column_name="mmseqs_lineage_contig")
+
         if data is not None and taxonomy_level in data.columns:
             unique_values = sorted(data[taxonomy_level].dropna().unique())
 

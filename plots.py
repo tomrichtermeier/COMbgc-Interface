@@ -85,26 +85,48 @@ def stacked_bars_product_classes(table):
 #      SCATTER PLOT
 ###########################################
 
-def scatter_bgc_contig_classes(table):
-    filtered_bgcs = table.copy()
-    filtered_bgcs['contig_length'] = filtered_bgcs['contig_id'].apply(lambda x: int(re.search(r'length_(\d+)', x).group(1)))
-    product_classes = filtered_bgcs['Product_class'].unique()
+def scatter_bgc_contig_classes(table, number_plots):
+    import re
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
 
-    fig = make_subplots(rows=len(product_classes), cols=1, subplot_titles=[f"Product Class: {pc}" for pc in product_classes])
+    # Make a copy of the input table
+    filtered_bgcs = table.copy()
+    
+    # Extract contig length from the contig_id column
+    filtered_bgcs['contig_length'] = filtered_bgcs['contig_id'].apply(lambda x: int(re.search(r'length_(\d+)', x).group(1)))
+    
+    # Clean and filter the product classes
+    filtered_bgcs["Product_class"] = filtered_bgcs["Product_class"].apply(lambda x: x.strip())
+    class_counts = filtered_bgcs["Product_class"].value_counts()
+    valid_classes = class_counts[class_counts >= number_plots].index
+    class_order = class_counts.loc[valid_classes].sort_values(ascending=False).index
+    filtered_bgcs = filtered_bgcs[filtered_bgcs["Product_class"].isin(valid_classes)]
+    
+    # Use the sorted product classes for plotting
+    product_classes = class_order
+    
+    # Create a subplot figure
+    fig = make_subplots(
+        rows=len(product_classes), 
+        cols=1, 
+        subplot_titles=[f"Product Class: {pc}" for pc in product_classes]
+    )
 
     for i, product_class in enumerate(product_classes, 1):
         subset = filtered_bgcs[filtered_bgcs['Product_class'] == product_class]
         scatter = go.Scatter(
-                            x=subset['contig_length'], 
-                            y=subset['BGC_length'], 
-                            mode='markers', 
-                            name=product_class,
-                            text=subset['sample_id'],  # Assign sample_id to hover text
-                            customdata=subset['contig_id'],  # Assign contig_id to custom data
-                            hovertemplate="Sample ID: %{text}<br>Contig ID: %{customdata}<br>Contig Length: %{x}<br>BGC Length: %{y}"
-            )
+            x=subset['contig_length'], 
+            y=subset['BGC_length'], 
+            mode='markers', 
+            name=product_class,
+            text=subset['sample_id'],  # Assign sample_id to hover text
+            customdata=subset['contig_id'],  # Assign contig_id to custom data
+            hovertemplate="Sample ID: %{text}<br>Contig ID: %{customdata}<br>Contig Length: %{x}<br>BGC Length: %{y}"
+        )
         fig.add_trace(scatter, row=i, col=1)
         
+        # Adjust axes for single data points
         if len(subset) == 1:
             single_x = subset['contig_length'].iloc[0]
             single_y = subset['BGC_length'].iloc[0]
@@ -113,6 +135,7 @@ def scatter_bgc_contig_classes(table):
             fig.update_xaxes(range=x_range, row=i, col=1)
             fig.update_yaxes(range=y_range, row=i, col=1)
 
+    # Update layout
     fig.update_layout(
         height=250 * len(product_classes),  # Adjust height based on the number of classes
         title_text="BGC Length vs. Contig Length for Each Product Class",
@@ -120,10 +143,9 @@ def scatter_bgc_contig_classes(table):
         margin=dict(t=100),
         xaxis_title="Contig Length [bp]", 
         yaxis_title="BGC Length [bp]"
-
     )
+    
     return fig
-
 
 
 ###########################################

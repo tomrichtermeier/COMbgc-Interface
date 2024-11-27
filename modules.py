@@ -149,7 +149,7 @@ def combgc_general_statistics_server(
 
 
 ###########################################
-#        PRODUCT CLASS -- BARS
+#        PRODUCT CLASS DISTRIBUTION
 ###########################################
 @module.ui
 def combgc_barplot_ui():
@@ -158,6 +158,7 @@ def combgc_barplot_ui():
         output_widget("barplot_output"),
         ui.p(""),
         output_widget("scatter_output"),
+        ui.input_slider("scatter_threshold", "Select the minimum amount of bgcs for the product class to be displayed:", min=1, max=50, value=15, step=1),
         ui.p(""),
         ui.row(
             ui.card(
@@ -185,9 +186,10 @@ def combgc_barplot_server(
     @output
     @render_widget
     def scatter_output():
+        number_plots = input.scatter_threshold()
         data = df()  # Call the reactive function to get the actual DataFrame
         if data is not None and not data.empty:
-            return scatter_bgc_contig_classes(data)  # Pass the DataFrame to the plot function
+            return scatter_bgc_contig_classes(data, number_plots)  # Pass the DataFrame to the plot function
         return None
 
 

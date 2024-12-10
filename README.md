@@ -1,4 +1,4 @@
-# COMbgc
+# comBGC
 
 ### Starting the interface
 To visualize the result tables from COMbgc, a pyshiny app can be rendered by running:
